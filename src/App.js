@@ -1,25 +1,43 @@
-import logo from './logo.svg';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import './App.css';
+import Header from './header';
+import SearchPage from './SearchPage';
+import AboutPage from './AboutPage';
+import PropertyDetailsPage from './PropertyDetailsPage';
 
-function App() {
+// Wrapper component to handle property details routing
+const PropertyDetailsWrapper = () => {
+  const { mlsNumber } = useParams();
+  const navigate = useNavigate();
+  
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <PropertyDetailsPage 
+      mlsNumber={mlsNumber}
+      onBack={() => navigate('/')}
+    />
   );
-}
+};
+
+const App = () => {
+  return (
+    <Router>
+      <div className="App">
+        <Header />
+        
+        <Routes>
+          {/* Home/Search page route */}
+          <Route path="/" element={<SearchPage />} />
+          
+          {/* About page route */}
+          <Route path="/about" element={<AboutPage />} />
+          
+          {/* Property details route */}
+          <Route path="/property/:mlsNumber" element={<PropertyDetailsWrapper />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+};
 
 export default App;

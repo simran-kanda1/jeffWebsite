@@ -1,7 +1,9 @@
+// FIXED PropertyResults.js with heart button removed
 import React, { useState } from 'react';
-import './PropertyResults.css'; // Use isolated CSS file
+import './PropertyResults.css';
 import formatAddress from './format/formatAddress';
 import CompactPagination from './CompactPagination';
+import Pagination from './Pagination';
 import ContactFormModal from './ContactFormModal';
 
 const PropertyResults = ({ 
@@ -13,19 +15,24 @@ const PropertyResults = ({
   viewMode = 'map', 
   pagination = null, 
   currentPage = 1, 
-  onPageChange 
+  onPageChange,
+  showPagination = true
 }) => {
   const IMAGE_BASE_URL = 'https://cdn.repliers.io/';
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedPropertyForContact, setSelectedPropertyForContact] = useState(null);
 
-  console.log('PropertyResults render:', { 
-    properties: properties.length, 
+  console.log('PropertyResults DEBUG:', { 
+    'properties.length': properties.length,
+    'pagination object': pagination,
+    'pagination.count': pagination?.count,
+    'pagination.numPages': pagination?.numPages,
+    'pagination.pageSize': pagination?.pageSize,
+    'currentPage': currentPage,
     loading, 
     error, 
     viewMode,
-    pagination,
-    firstProperty: properties[0]
+    showPagination
   });
 
   // Loading state
@@ -61,9 +68,10 @@ const PropertyResults = ({
     );
   }
 
-  // Calculate pagination info for display
+  // Calculate pagination values
   const pageNum = currentPage || pagination?.page || 1;
   const pageSize = pagination?.pageSize || 100;
+  const totalPages = pagination?.numPages || 1;
   const totalCount = pagination?.count || 0;
   
   // Calculate current page range
@@ -91,55 +99,61 @@ const PropertyResults = ({
   };
 
   const getPropertyBadge = (property) => {
-    const price = property.listPrice || property.price || property.askingPrice || 0;
-    
-    // Since we're filtering for Sale only, always show "For Sale"
     return 'For Sale';
   };
 
   const formatPrice = (price) => {
     if (!price || price === 0) return 'Price on request';
-    return `$${price.toLocaleString()}`;
+    return `${price.toLocaleString()}`;
   };
+
+  // Check if we're on mobile
+  const isMobile = window.innerWidth <= 768;
 
   // Main render
   return (
     <div className="property-results-wrapper">
-      {/* Header */}
-      <div className="property-results-header">
-        <div className="property-results-summary">
-          <h3>
-            {totalCount > 0 
-              ? `${totalCount.toLocaleString()} Properties Found`
-              : `${properties.length} Properties Found`
-            }
-          </h3>
-          <p>
-            {totalCount > 0 
-              ? `Showing ${startResult.toLocaleString()} - ${endResult.toLocaleString()} of ${totalCount.toLocaleString()} results for Brantford area`
-              : `Showing ${properties.length} results for Brantford area`
-            }
-          </p>
-        </div>
-        
-        <div className="property-results-actions">
-          <button className="property-sort-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18M7 12h10m-7 6h4"></path>
-            </svg>
-            Sort
-          </button>
+      {/* Header with results count and pagination on right */}
+      {showPagination && (
+        <div className="property-results-header">
+          <div className="property-results-summary">
+            <h3>
+              {totalCount > 0 
+                ? `${totalCount.toLocaleString()} Properties Found`
+                : `${properties.length} Properties Found`
+              }
+            </h3>
+            <p>
+              {totalCount > 0 
+                ? `Showing ${startResult.toLocaleString()} - ${endResult.toLocaleString()} of ${totalCount.toLocaleString()} results for Brantford area`
+                : `Showing ${properties.length} results for Brantford area`
+              }
+            </p>
+          </div>
           
-          {/* Compact Pagination */}
-          {pagination && pagination.numPages > 1 && onPageChange && (
-            <CompactPagination
-              currentPage={pageNum}
-              totalPages={pagination.numPages}
-              onPageChange={onPageChange}
-            />
-          )}
+          {/* Pagination on the right side of header (desktop only) */}
+          <div className="property-results-actions">
+            {!isMobile && pagination && totalPages > 1 && onPageChange && (
+              <CompactPagination
+                currentPage={pageNum}
+                totalPages={totalPages}
+                onPageChange={onPageChange}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Top Pagination - Only for mobile */}
+      {isMobile && showPagination && pagination && onPageChange && totalPages > 1 && (
+        <div className="property-results-top-pagination mobile-top-pagination">
+          <CompactPagination
+            currentPage={pageNum}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
 
       {/* Results Grid */}
       <div className="property-results-grid">
@@ -188,17 +202,13 @@ const PropertyResults = ({
                     {getPropertyBadge(property)}
                   </div>
                   
-                  <button className="property-listing-favorite" onClick={(e) => e.stopPropagation()}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                    </svg>
-                  </button>
+                  {/* REMOVED: Heart/favorite button is completely removed */}
                 </div>
 
                 {/* Content Section */}
                 <div className="property-listing-content">
                   <div className="property-listing-price">
-                    {formatPrice(price)}
+                    ${formatPrice(price)}
                   </div>
                   
                   <div className="property-listing-address">
@@ -249,7 +259,7 @@ const PropertyResults = ({
                         className="property-contact-btn"
                         onClick={(e) => handleContactClick(property, e)}
                       >
-                        Contact
+                        More Info
                       </button>
                     </div>
                   </div>
@@ -259,6 +269,28 @@ const PropertyResults = ({
           })
         )}
       </div>
+
+      {/* Bottom Pagination - ALWAYS AT BOTTOM */}
+      {showPagination && pagination && onPageChange && totalPages > 1 && (
+        <div className={`property-results-bottom-pagination ${isMobile ? 'mobile-bottom-pagination' : 'desktop-bottom-pagination'}`}>
+          {/* Show appropriate pagination based on device and view mode */}
+          {isMobile || viewMode === 'map' ? (
+            <CompactPagination
+              currentPage={pageNum}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+            />
+          ) : (
+            <Pagination
+              currentPage={pageNum}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageChange={onPageChange}
+            />
+          )}
+        </div>
+      )}
 
       {/* Contact Form Modal */}
       <ContactFormModal

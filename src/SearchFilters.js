@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, ChevronDown, X, SlidersHorizontal, Grid3X3, Map, Check } from 'lucide-react';
 import './SearchFilters.css'
 
@@ -8,6 +8,46 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
   const [showActiveDropdown, setShowActiveDropdown] = useState(false);
   const [showPropertyTypeDropdown, setShowPropertyTypeDropdown] = useState(false);
   const [showPriceDropdown, setShowPriceDropdown] = useState(false);
+  
+  // Refs for mobile dropdown positioning
+  const forSaleRef = useRef(null);
+  const propertyTypeRef = useRef(null);
+  const priceRef = useRef(null);
+  const activeRef = useRef(null);
+
+  // FIXED: Remove body scroll management - let natural scroll work
+  // Only close dropdowns on outside click, don't prevent body scroll
+  
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close all dropdowns if clicking outside
+      if (!event.target.closest('.dropdown-container') && !event.target.closest('.advanced-filters')) {
+        setShowForSaleDropdown(false);
+        setShowActiveDropdown(false);
+        setShowPropertyTypeDropdown(false);
+        setShowPriceDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Close dropdowns on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        closeAllDropdowns();
+        setShowFilters(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
 
   // Auto-search when filters change (with debounce)
   useEffect(() => {
@@ -44,10 +84,56 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
     });
   };
 
-  const toggleViewMode = () => {
-    if (onViewModeChange) {
-      const newMode = viewMode === 'map' ? 'grid' : 'map';
-      onViewModeChange(newMode);
+  // Close all dropdowns when opening a new one
+  const closeAllDropdowns = () => {
+    setShowForSaleDropdown(false);
+    setShowActiveDropdown(false);
+    setShowPropertyTypeDropdown(false);
+    setShowPriceDropdown(false);
+  };
+
+  const handleDropdownToggle = (dropdownType) => {
+    closeAllDropdowns();
+    
+    switch (dropdownType) {
+      case 'forSale':
+        setShowForSaleDropdown(true);
+        break;
+      case 'active':
+        setShowActiveDropdown(true);
+        break;
+      case 'propertyType':
+        setShowPropertyTypeDropdown(true);
+        break;
+      case 'price':
+        setShowPriceDropdown(true);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handle dropdown item selection with proper mobile behavior
+  const handleDropdownSelection = (dropdownType, value) => {
+    switch (dropdownType) {
+      case 'forSale':
+        handleFilterChange('forSale', value);
+        setShowForSaleDropdown(false);
+        break;
+      case 'active':
+        handleFilterChange('activeStatus', value);
+        setShowActiveDropdown(false);
+        break;
+      case 'propertyType':
+        handleFilterChange('propertyType', value);
+        setShowPropertyTypeDropdown(false);
+        break;
+      case 'price':
+        handleFilterChange('priceRange', value);
+        setShowPriceDropdown(false);
+        break;
+      default:
+        break;
     }
   };
 
@@ -93,6 +179,30 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
     { value: '2000000-999999999', label: '$2M+' }
   ];
 
+  // FIXED: Mobile dropdown component without body scroll prevention
+  const MobileDropdown = ({ isOpen, onClose, children, title }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="dropdown-menu" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()}>
+          {title && (
+            <div style={{ 
+              padding: '16px 24px', 
+              borderBottom: '1px solid #f3f4f6',
+              fontWeight: '600',
+              fontSize: '16px',
+              color: '#111827'
+            }}>
+              {title}
+            </div>
+          )}
+          {children}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="modern-search-container">
       <div className="search-bar-wrapper">
@@ -104,7 +214,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
             placeholder="Search by address or MLS"
             value={filters.query || ''}
             onChange={(e) => handleFilterChange('query', e.target.value)}
-            onPress={(e) => e.key === 'Enter' && handleSearch()}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             className="main-search-input"
           />
         </div>
@@ -112,31 +222,34 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
         {/* Filter Buttons */}
         <div className="filter-buttons">
           {/* For Sale Dropdown */}
-          <div className="dropdown-container">
+          <div className="dropdown-container" ref={forSaleRef}>
             <button 
               className="filter-btn"
-              onClick={() => setShowForSaleDropdown(!showForSaleDropdown)}
+              onClick={() => handleDropdownToggle('forSale')}
+              aria-expanded={showForSaleDropdown}
+              aria-haspopup="listbox"
             >
               <span>{filters.forSale || 'For Sale'}</span>
               <ChevronDown size={16} />
             </button>
-            {showForSaleDropdown && (
-              <div className="dropdown-menu">
-                {forSaleOptions.map(option => (
-                  <div 
-                    key={option.value}
-                    className={`dropdown-item ${(filters.forSale || 'For Sale') === option.value ? 'selected' : ''}`}
-                    onClick={() => {
-                      handleFilterChange('forSale', option.value);
-                      setShowForSaleDropdown(false);
-                    }}
-                  >
-                    {option.label}
-                    {(filters.forSale || 'For Sale') === option.value && <Check size={16} />}
-                  </div>
-                ))}
-              </div>
-            )}
+            <MobileDropdown 
+              isOpen={showForSaleDropdown} 
+              onClose={() => setShowForSaleDropdown(false)}
+              title="Listing Type"
+            >
+              {forSaleOptions.map(option => (
+                <div 
+                  key={option.value}
+                  className={`dropdown-item ${(filters.forSale || 'For Sale') === option.value ? 'selected' : ''}`}
+                  onClick={() => handleDropdownSelection('forSale', option.value)}
+                  role="option"
+                  aria-selected={(filters.forSale || 'For Sale') === option.value}
+                >
+                  {option.label}
+                  {(filters.forSale || 'For Sale') === option.value && <Check size={16} />}
+                </div>
+              ))}
+            </MobileDropdown>
           </div>
 
           {/* Active Status Buttons */}
@@ -147,31 +260,34 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
             >
               Active
             </button>
-            <div className="dropdown-container">
+            <div className="dropdown-container" ref={activeRef}>
               <button 
                 className={`status-btn dropdown-btn ${(filters.activeStatus || 'Active') === 'All' ? 'active' : ''}`}
-                onClick={() => setShowActiveDropdown(!showActiveDropdown)}
+                onClick={() => handleDropdownToggle('active')}
+                aria-expanded={showActiveDropdown}
+                aria-haspopup="listbox"
               >
                 All
                 <ChevronDown size={14} />
               </button>
-              {showActiveDropdown && (
-                <div className="dropdown-menu active-dropdown">
-                  {activeOptions.map(option => (
-                    <div 
-                      key={option.value}
-                      className={`dropdown-item ${(filters.activeStatus || 'Active') === option.value ? 'selected' : ''}`}
-                      onClick={() => {
-                        handleFilterChange('activeStatus', option.value);
-                        setShowActiveDropdown(false);
-                      }}
-                    >
-                      {option.label}
-                      {(filters.activeStatus || 'Active') === option.value && <Check size={16} />}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <MobileDropdown 
+                isOpen={showActiveDropdown} 
+                onClose={() => setShowActiveDropdown(false)}
+                title="Listing Status"
+              >
+                {activeOptions.map(option => (
+                  <div 
+                    key={option.value}
+                    className={`dropdown-item ${(filters.activeStatus || 'Active') === option.value ? 'selected' : ''}`}
+                    onClick={() => handleDropdownSelection('active', option.value)}
+                    role="option"
+                    aria-selected={(filters.activeStatus || 'Active') === option.value}
+                  >
+                    {option.label}
+                    {(filters.activeStatus || 'Active') === option.value && <Check size={16} />}
+                  </div>
+                ))}
+              </MobileDropdown>
             </div>
           </div>
 
@@ -184,76 +300,83 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
           </button>
 
           {/* Property Type Dropdown */}
-          <div className="dropdown-container">
+          <div className="dropdown-container" ref={propertyTypeRef}>
             <button 
               className="filter-btn"
-              onClick={() => setShowPropertyTypeDropdown(!showPropertyTypeDropdown)}
+              onClick={() => handleDropdownToggle('propertyType')}
+              aria-expanded={showPropertyTypeDropdown}
+              aria-haspopup="listbox"
             >
               <span>{filters.propertyType ? propertyTypes.find(p => p.value === filters.propertyType)?.label : 'Property type'}</span>
               <ChevronDown size={16} />
             </button>
-            {showPropertyTypeDropdown && (
-              <div className="dropdown-menu property-type-menu">
-                {propertyTypes.map(type => (
-                  <div 
-                    key={type.value}
-                    className={`dropdown-item property-type-item ${filters.propertyType === type.value ? 'selected' : ''}`}
-                    onClick={() => {
-                      handleFilterChange('propertyType', type.value);
-                      setShowPropertyTypeDropdown(false);
-                    }}
-                  >
-                    <span className="property-icon">{type.icon}</span>
-                    <span>{type.label}</span>
-                    {filters.propertyType === type.value && <Check size={16} />}
-                  </div>
-                ))}
-              </div>
-            )}
+            <MobileDropdown 
+              isOpen={showPropertyTypeDropdown} 
+              onClose={() => setShowPropertyTypeDropdown(false)}
+              title="Property Type"
+            >
+              {propertyTypes.map(type => (
+                <div 
+                  key={type.value}
+                  className={`dropdown-item property-type-item ${filters.propertyType === type.value ? 'selected' : ''}`}
+                  onClick={() => handleDropdownSelection('propertyType', type.value)}
+                  role="option"
+                  aria-selected={filters.propertyType === type.value}
+                >
+                  <span className="property-icon">{type.icon}</span>
+                  <span>{type.label}</span>
+                  {filters.propertyType === type.value && <Check size={16} />}
+                </div>
+              ))}
+            </MobileDropdown>
           </div>
 
           {/* Price Range Dropdown */}
-          <div className="dropdown-container">
+          <div className="dropdown-container" ref={priceRef}>
             <button 
               className="filter-btn"
-              onClick={() => setShowPriceDropdown(!showPriceDropdown)}
+              onClick={() => handleDropdownToggle('price')}
+              aria-expanded={showPriceDropdown}
+              aria-haspopup="listbox"
             >
               <span>{filters.priceRange ? priceRanges.find(p => p.value === filters.priceRange)?.label : 'Any price range'}</span>
               <ChevronDown size={16} />
             </button>
-            {showPriceDropdown && (
-              <div className="dropdown-menu">
-                <div 
-                  className={`dropdown-item ${!filters.priceRange ? 'selected' : ''}`}
-                  onClick={() => {
-                    handleFilterChange('priceRange', '');
-                    setShowPriceDropdown(false);
-                  }}
-                >
-                  Any price range
-                  {!filters.priceRange && <Check size={16} />}
-                </div>
-                {priceRanges.map(range => (
-                  <div 
-                    key={range.value}
-                    className={`dropdown-item ${filters.priceRange === range.value ? 'selected' : ''}`}
-                    onClick={() => {
-                      handleFilterChange('priceRange', range.value);
-                      setShowPriceDropdown(false);
-                    }}
-                  >
-                    {range.label}
-                    {filters.priceRange === range.value && <Check size={16} />}
-                  </div>
-                ))}
+            <MobileDropdown 
+              isOpen={showPriceDropdown} 
+              onClose={() => setShowPriceDropdown(false)}
+              title="Price Range"
+            >
+              <div 
+                className={`dropdown-item ${!filters.priceRange ? 'selected' : ''}`}
+                onClick={() => handleDropdownSelection('price', '')}
+                role="option"
+                aria-selected={!filters.priceRange}
+              >
+                Any price range
+                {!filters.priceRange && <Check size={16} />}
               </div>
-            )}
+              {priceRanges.map(range => (
+                <div 
+                  key={range.value}
+                  className={`dropdown-item ${filters.priceRange === range.value ? 'selected' : ''}`}
+                  onClick={() => handleDropdownSelection('price', range.value)}
+                  role="option"
+                  aria-selected={filters.priceRange === range.value}
+                >
+                  {range.label}
+                  {filters.priceRange === range.value && <Check size={16} />}
+                </div>
+              ))}
+            </MobileDropdown>
           </div>
 
           {/* Filters Button */}
           <button 
             className={`filter-btn ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-label="Advanced filters"
           >
             <SlidersHorizontal size={16} />
           </button>
@@ -271,6 +394,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
           <button 
             className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
             onClick={() => onViewModeChange('grid')}
+            aria-label="Grid view"
           >
             <Grid3X3 size={16} />
             Grid
@@ -278,6 +402,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
           <button 
             className={`view-btn ${viewMode === 'map' ? 'active' : ''}`}
             onClick={() => onViewModeChange('map')}
+            aria-label="Map view"
           >
             <Map size={16} />
             Map
@@ -285,155 +410,149 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
         </div>
       </div>
 
-      {/* Advanced Filters Panel - Now appears below search bar */}
+      {/* FIXED: Advanced Filters Panel without body scroll prevention */}
       {showFilters && (
-        <div className="advanced-filters">
-          <div className="filters-section">
-            <h3>Filters</h3>
-            <button 
-              className="close-filters-btn"
-              onClick={() => setShowFilters(false)}
-            >
-              <X size={18} />
-            </button>
-          </div>
-          
-          <div className="filters-grid">
-            <div className="filter-row">
-              <div className="filter-group">
-                <label>Keywords</label>
-                <input
-                  type="text"
-                  placeholder="Short term, furnished, etc"
-                  value={filters.keywords || ''}
-                  onChange={(e) => handleFilterChange('keywords', e.target.value)}
-                  className="filter-input"
-                />
+        <div className="advanced-filters" onClick={() => setShowFilters(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <div className="filters-section">
+              <h3>Filters</h3>
+              <button 
+                className="close-filters-btn"
+                onClick={() => setShowFilters(false)}
+                aria-label="Close filters"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="filters-grid">
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Internal sqft</label>
+                  <div className="range-inputs">
+                    <input
+                      type="number"
+                      placeholder="no min"
+                      value={filters.sqftMin || ''}
+                      onChange={(e) => handleFilterChange('sqftMin', e.target.value)}
+                      className="range-input"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      placeholder="no max"
+                      value={filters.sqftMax || ''}
+                      onChange={(e) => handleFilterChange('sqftMax', e.target.value)}
+                      className="range-input"
+                    />
+                  </div>
+                </div>
+                <div className="filter-group">
+                  <label>Bedrooms</label>
+                  <div className="number-buttons">
+                    {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(bed => (
+                      <button
+                        key={bed}
+                        className={`number-btn ${filters.bedrooms === bed || (!filters.bedrooms && bed === 'Any') ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('bedrooms', bed === 'Any' ? '' : bed)}
+                      >
+                        {bed}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="filter-group">
-                <label>Max maintenance fees</label>
-                <select
-                  value={filters.maintenanceFees || ''}
-                  onChange={(e) => handleFilterChange('maintenanceFees', e.target.value)}
-                  className="filter-select"
+
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Bathrooms</label>
+                  <div className="number-buttons">
+                    {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(bath => (
+                      <button
+                        key={bath}
+                        className={`number-btn ${filters.bathrooms === bath || (!filters.bathrooms && bath === 'Any') ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('bathrooms', bath === 'Any' ? '' : bath)}
+                      >
+                        {bath}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="filter-group">
+                  <label>Garage/Covered parking</label>
+                  <div className="number-buttons">
+                    {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(parking => (
+                      <button
+                        key={parking}
+                        className={`number-btn ${filters.parking === parking || (!filters.parking && parking === 'Any') ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('parking', parking === 'Any' ? '' : parking)}
+                      >
+                        {parking}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Basement</label>
+                  <div className="checkbox-buttons">
+                    {['Finished', 'Partly Finished', 'Sep Entrance'].map(basement => (
+                      <button
+                        key={basement}
+                        className={`checkbox-btn ${filters.basement === basement ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('basement', filters.basement === basement ? '' : basement)}
+                      >
+                        {basement}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="filter-actions">
+                <button 
+                  className="reset-btn"
+                  onClick={() => {
+                    clearFilters();
+                    setShowFilters(false);
+                  }}
                 >
-                  <option value="">Any</option>
-                  <option value="100">Under $100</option>
-                  <option value="200">Under $200</option>
-                  <option value="300">Under $300</option>
-                  <option value="500">Under $500</option>
-                </select>
+                  Reset All
+                </button>
+                <button 
+                  className="submit-btn"
+                  onClick={() => {
+                    handleSearch();
+                    setShowFilters(false);
+                  }}
+                >
+                  Submit
+                </button>
               </div>
-            </div>
-
-            <div className="filter-row">
-              <div className="filter-group">
-                <label>Internal sqft</label>
-                <div className="range-inputs">
-                  <input
-                    type="number"
-                    placeholder="no min"
-                    value={filters.sqftMin || ''}
-                    onChange={(e) => handleFilterChange('sqftMin', e.target.value)}
-                    className="range-input"
-                  />
-                  <span>-</span>
-                  <input
-                    type="number"
-                    placeholder="no max"
-                    value={filters.sqftMax || ''}
-                    onChange={(e) => handleFilterChange('sqftMax', e.target.value)}
-                    className="range-input"
-                  />
-                </div>
-              </div>
-              <div className="filter-group">
-                <label>Bedrooms</label>
-                <div className="number-buttons">
-                  {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(bed => (
-                    <button
-                      key={bed}
-                      className={`number-btn ${filters.bedrooms === bed || (!filters.bedrooms && bed === 'Any') ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('bedrooms', bed === 'Any' ? '' : bed)}
-                    >
-                      {bed}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="filter-row">
-              <div className="filter-group">
-                <label>Bathrooms</label>
-                <div className="number-buttons">
-                  {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(bath => (
-                    <button
-                      key={bath}
-                      className={`number-btn ${filters.bathrooms === bath || (!filters.bathrooms && bath === 'Any') ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('bathrooms', bath === 'Any' ? '' : bath)}
-                    >
-                      {bath}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="filter-group">
-                <label>Garage/Covered parking</label>
-                <div className="number-buttons">
-                  {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(parking => (
-                    <button
-                      key={parking}
-                      className={`number-btn ${filters.parking === parking || (!filters.parking && parking === 'Any') ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('parking', parking === 'Any' ? '' : parking)}
-                    >
-                      {parking}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="filter-row">
-              <div className="filter-group">
-                <label>Basement</label>
-                <div className="checkbox-buttons">
-                  {['Finished', 'Partly Finished', 'Sep Entrance'].map(basement => (
-                    <button
-                      key={basement}
-                      className={`checkbox-btn ${filters.basement === basement ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('basement', filters.basement === basement ? '' : basement)}
-                    >
-                      {basement}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="filter-actions">
-              <button 
-                className="reset-btn"
-                onClick={() => {
-                  clearFilters();
-                  setShowFilters(false);
-                }}
-              >
-                Reset All
-              </button>
-              <button 
-                className="submit-btn"
-                onClick={() => {
-                  handleSearch();
-                  setShowFilters(false);
-                }}
-              >
-                Submit
-              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Mobile View Toggle - Fixed at bottom center */}
+      <div className="mobile-view-toggle">
+        <button 
+          className={`mobile-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+          onClick={() => onViewModeChange('grid')}
+          aria-label="Grid view"
+        >
+          <Grid3X3 size={18} />
+        </button>
+        <button 
+          className={`mobile-view-btn ${viewMode === 'map' ? 'active' : ''}`}
+          onClick={() => onViewModeChange('map')}
+          aria-label="Map view"
+        >
+          <Map size={18} />
+        </button>
+      </div>
     </div>
   );
 };

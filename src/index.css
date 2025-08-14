@@ -5,6 +5,13 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* CRITICAL: Enable scrolling on body */
+  overflow: auto !important;
+  height: auto !important;
+  min-height: 100vh; /* Use min-height instead of fixed height */
+  /* Enable touch scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
 }
 
 code {

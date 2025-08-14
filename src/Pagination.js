@@ -50,8 +50,7 @@ const Pagination = ({ currentPage, totalPages, totalCount, pageSize, onPageChang
       padding: '20px 24px',
       borderTop: '1px solid #e5e7eb',
       backgroundColor: 'white',
-      position: 'sticky',
-      bottom: '0',
+      position: 'relative',
       zIndex: '100'
     },
     resultInfo: {
@@ -86,8 +85,8 @@ const Pagination = ({ currentPage, totalPages, totalCount, pageSize, onPageChang
       borderColor: '#9ca3af'
     },
     paginationButtonActive: {
-      backgroundColor: '#059669',
-      borderColor: '#059669',
+      backgroundColor: '#050E3D', // FIXED: Changed from green to dark blue
+      borderColor: '#050E3D',
       color: 'white'
     },
     paginationButtonDisabled: {

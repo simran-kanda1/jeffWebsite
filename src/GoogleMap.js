@@ -3,27 +3,49 @@ import { useNavigate } from 'react-router-dom';
 import formatAddress from './format/formatAddress';
 import apiService from './apiService';
 
-const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LAT) || 43.1394, lng: parseFloat(process.env.REACT_APP_DEFAULT_LNG) || -80.2644 }, properties = [], isFiltered = false }) => {
+const GoogleMap = ({ 
+  center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LAT) || 43.1394, lng: parseFloat(process.env.REACT_APP_DEFAULT_LNG) || -80.2644 }, 
+  properties = [], 
+  isFiltered = false,
+  onPropertySelect,
+  onBoundsChange, // NEW: Callback for when map bounds change
+  enableBoundsFiltering = true // NEW: Toggle for bounds filtering
+}) => {
   const navigate = useNavigate();
   const mapRef = useRef(null);
   const googleMapRef = useRef(null);
   const markersRef = useRef([]);
   const markerClustererRef = useRef(null);
   const infoWindowRef = useRef(null);
+  const boundsChangeTimeoutRef = useRef(null);
   const [allProperties, setAllProperties] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_BASE_URL || 'https://cdn.repliers.io/';
   const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
   
   // Company color palette
   const colors = {
-    cobalt: '#050E3D',      // Primary
-    onyx: '#1D1D1D',        // Secondary - for hovers
-    slate: '#615B56',       // Secondary
-    seaglass: '#BFDDDB',    // Secondary
+    cobalt: '#050E3D',
+    onyx: '#1D1D1D',
+    slate: '#615B56',
+    seaglass: '#BFDDDB',
     white: '#FFFFFF'
   };
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Load all properties when component mounts (only if not filtered)
   useEffect(() => {
@@ -31,9 +53,8 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
       if (!isFiltered && properties.length === 0) {
         try {
           setLoading(true);
-          // Get multiple pages to show more properties on map
           const promises = [];
-          for (let page = 1; page <= 12; page++) { // Load first 12 pages (1200 properties)
+          for (let page = 1; page <= 12; page++) {
             promises.push(apiService.getBasicListings(page, 100));
           }
           
@@ -51,18 +72,131 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
     loadAllProperties();
   }, [isFiltered, properties.length]);
 
-  // Custom marker icon for individual properties with better price formatting
+  // NEW: Function to check if a point is within map bounds
+  const isPropertyInBounds = (property, bounds) => {
+    if (!bounds || !googleMapRef.current) return true;
+    
+    let lat = null;
+    let lng = null;
+    
+    // Try different coordinate formats
+    if (property.map?.latitude && property.map?.longitude) {
+      lat = parseFloat(property.map.latitude);
+      lng = parseFloat(property.map.longitude);
+    } else if (property.latitude && property.longitude) {
+      lat = parseFloat(property.latitude);
+      lng = parseFloat(property.longitude);
+    } else if (property.lat && property.lng) {
+      lat = parseFloat(property.lat);
+      lng = parseFloat(property.lng);
+    } else if (property.coordinates) {
+      lat = parseFloat(property.coordinates.lat || property.coordinates.latitude);
+      lng = parseFloat(property.coordinates.lng || property.coordinates.longitude);
+    } else if (property.location) {
+      lat = parseFloat(property.location.lat || property.location.latitude);
+      lng = parseFloat(property.location.lng || property.location.longitude);
+    }
+    
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      return false;
+    }
+    
+    // Check if coordinates are within reasonable bounds for Brantford area
+    if (lat < 42.5 || lat > 44.5 || lng < -81.5 || lng > -79.5) {
+      return false;
+    }
+    
+    return bounds.contains(new window.google.maps.LatLng(lat, lng));
+  };
+
+  // NEW: Handle map bounds change with debouncing
+  const handleBoundsChanged = () => {
+    console.log('🗺️ handleBoundsChanged called', {
+      hasMap: !!googleMapRef.current,
+      enableBoundsFiltering,
+      hasCallback: !!onBoundsChange,
+      isMapReady
+    });
+
+    if (!googleMapRef.current || !enableBoundsFiltering || !onBoundsChange || !isMapReady) {
+      console.log('🗺️ Bounds change handler: conditions not met');
+      return;
+    }
+
+    // Clear existing timeout
+    if (boundsChangeTimeoutRef.current) {
+      clearTimeout(boundsChangeTimeoutRef.current);
+    }
+
+    // Debounce the bounds change to avoid too many API calls
+    boundsChangeTimeoutRef.current = setTimeout(() => {
+      try {
+        const bounds = googleMapRef.current.getBounds();
+        const zoom = googleMapRef.current.getZoom();
+        
+        console.log('🗺️ Processing bounds change:', { zoom, hasBounds: !!bounds });
+        
+        if (!bounds) {
+          console.log('🗺️ No bounds available');
+          return;
+        }
+        
+        const propertiesToShow = isFiltered ? properties : allProperties;
+        console.log('🗺️ Total properties to filter:', propertiesToShow.length);
+        
+        if (zoom >= 10) { // Only filter when zoomed in enough
+          const propertiesInBounds = propertiesToShow.filter(property => 
+            isPropertyInBounds(property, bounds)
+          );
+          
+          console.log(`🗺️ Map bounds changed: ${propertiesInBounds.length} properties in view (zoom: ${zoom})`);
+          
+          // Call the callback with filtered properties
+          onBoundsChange({
+            properties: propertiesInBounds,
+            bounds: {
+              north: bounds.getNorthEast().lat(),
+              south: bounds.getSouthWest().lat(),
+              east: bounds.getNorthEast().lng(),
+              west: bounds.getSouthWest().lng()
+            },
+            zoom: zoom,
+            totalProperties: propertiesToShow.length
+          });
+        } else {
+          console.log(`🗺️ Zoom level ${zoom} too low, showing all properties`);
+          // If zoomed out too far, show all properties
+          const allPropertiesToShow = isFiltered ? properties : allProperties;
+          onBoundsChange({
+            properties: allPropertiesToShow,
+            bounds: null,
+            zoom: zoom,
+            totalProperties: allPropertiesToShow.length
+          });
+        }
+      } catch (error) {
+        console.error('🗺️ Error in bounds change handler:', error);
+      }
+    }, 300); // Reduced debounce time for more responsive updates
+  };
+
+  // Custom marker icon for individual properties
   const createPropertyMarker = (price) => {
     const formattedPrice = formatPriceForMarker(price);
+    const width = isMobile ? 80 : 90;
+    const height = isMobile ? 28 : 32;
+    const fontSize = isMobile ? 12 : 13;
+    
     return {
       url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-        <svg width="90" height="32" viewBox="0 0 90 32" xmlns="http://www.w3.org/2000/svg">
-          <rect x="1" y="1" width="88" height="30" rx="15" fill="${colors.cobalt}" stroke="${colors.white}" stroke-width="2"/>
-          <text x="45" y="20" text-anchor="middle" fill="${colors.white}" font-size="13" font-weight="600" font-family="Arial, sans-serif">${formattedPrice}</text>
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="${width-2}" height="${height-2}" rx="15" fill="${colors.cobalt}" stroke="${colors.white}" stroke-width="2"/>
+          <text x="${width/2}" y="${height/2 + 4}" text-anchor="middle" fill="${colors.white}" font-size="${fontSize}" font-weight="600" font-family="Arial, sans-serif">${formattedPrice}</text>
         </svg>
       `),
-      scaledSize: new window.google.maps.Size(90, 32),
-      anchor: new window.google.maps.Point(45, 16)
+      scaledSize: new window.google.maps.Size(width, height),
+      anchor: new window.google.maps.Point(width/2, height/2)
     };
   };
 
@@ -72,12 +206,12 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
     
     if (price >= 1000000) {
       const millions = price / 1000000;
-      return `${millions.toFixed(1)}M`;
+      return `$${millions.toFixed(1)}M`;
     } else if (price >= 1000) {
       const thousands = price / 1000;
-      return `${Math.round(thousands)}K`;
+      return `$${Math.round(thousands)}K`;
     } else {
-      return `${Math.round(price)}`;
+      return `$${Math.round(price)}`;
     }
   };
 
@@ -100,7 +234,7 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
 
   // Custom cluster marker
   const createClusterMarker = (count) => {
-    const size = count < 10 ? 40 : count < 100 ? 50 : 60;
+    const size = count < 10 ? (isMobile ? 35 : 40) : count < 100 ? (isMobile ? 45 : 50) : (isMobile ? 55 : 60);
     return {
       url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
         <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
@@ -115,7 +249,11 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
 
   // Handle property click from info window
   const handlePropertyClick = (property) => {
-    if (property.mlsNumber) {
+    if (isMobile && onPropertySelect) {
+      // On mobile, use the callback to show modal
+      onPropertySelect(property);
+    } else if (property.mlsNumber) {
+      // On desktop, navigate directly
       navigate(`/property/${property.mlsNumber}`);
     }
   };
@@ -156,14 +294,14 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
       if (window.google && mapRef.current && !googleMapRef.current) {
         googleMapRef.current = new window.google.maps.Map(mapRef.current, {
           center: center,
-          zoom: 12,
+          zoom: isMobile ? 11 : 12,
           styles: [
             {
               "featureType": "poi.park",
               "elementType": "geometry",
               "stylers": [
                 {
-                  "color": "#BFDDDB" // Seaglass
+                  "color": "#BFDDDB"
                 }
               ]
             },
@@ -255,17 +393,66 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                 }
               ]
             }
-          ]
+          ],
+          // Mobile-specific map options
+          gestureHandling: isMobile ? 'cooperative' : 'auto',
+          zoomControl: !isMobile,
+          mapTypeControl: false,
+          scaleControl: false,
+          streetViewControl: false,
+          rotateControl: false,
+          fullscreenControl: !isMobile
         });
         
         // Create a single info window to reuse
         infoWindowRef.current = new window.google.maps.InfoWindow();
         
+        // Create a single info window to reuse
+        infoWindowRef.current = new window.google.maps.InfoWindow();
+        
+        // Mark map as ready
+        setIsMapReady(true);
+        
         // Add markers after map is initialized
         addMarkersWithClustering();
+        
+        // NEW: Add bounds change listener for desktop only - AFTER map is fully initialized
+        if (!isMobile && enableBoundsFiltering && onBoundsChange) {
+          console.log('🗺️ Setting up bounds change listeners...');
+          
+          // Use idle event to ensure map is fully loaded before adding listeners
+          const idleListener = googleMapRef.current.addListener('idle', () => {
+            console.log('🗺️ Map is idle, adding bounds change listeners');
+            
+            // Remove the idle listener since we only need it once
+            window.google.maps.event.removeListener(idleListener);
+            
+            // Add the actual bounds change listeners
+            googleMapRef.current.addListener('bounds_changed', () => {
+              console.log('🗺️ bounds_changed event fired');
+              handleBoundsChanged();
+            });
+            
+            googleMapRef.current.addListener('zoom_changed', () => {
+              console.log('🗺️ zoom_changed event fired');
+              handleBoundsChanged();
+            });
+            
+            googleMapRef.current.addListener('dragend', () => {
+              console.log('🗺️ dragend event fired');
+              handleBoundsChanged();
+            });
+            
+            // Call initial bounds change
+            setTimeout(() => {
+              console.log('🗺️ Calling initial handleBoundsChanged');
+              handleBoundsChanged();
+            }, 500);
+          });
+        }
       }
     }
-  }, [GOOGLE_MAPS_API_KEY]);
+  }, [GOOGLE_MAPS_API_KEY, isMobile, enableBoundsFiltering]);
 
   const addMarkersWithClustering = () => {
     if (googleMapRef.current) {
@@ -324,12 +511,15 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
               icon: createPropertyMarker(price)
             });
 
-            // Create improved info window content
+            // Create improved info window content - mobile optimized
             const imageUrl = property.images?.[0] ? getImageUrl(property.images[0]) : null;
+            const maxWidth = isMobile ? 280 : 300;
+            const imageHeight = isMobile ? 140 : 160;
+            
             const infoWindowContent = `
               <div style="
                 padding: 0;
-                max-width: 300px;
+                max-width: ${maxWidth}px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 border-radius: 12px;
                 overflow: hidden;
@@ -339,7 +529,7 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                 ${imageUrl ? `
                   <div style="
                     width: 100%;
-                    height: 160px;
+                    height: ${imageHeight}px;
                     background-image: url('${imageUrl}');
                     background-size: cover;
                     background-position: center;
@@ -361,9 +551,9 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                     </div>
                   </div>
                 ` : ''}
-                <div style="padding: 16px;">
+                <div style="padding: ${isMobile ? '12px' : '16px'};">
                   <div style="
-                    font-size: 18px;
+                    font-size: ${isMobile ? '16px' : '18px'};
                     font-weight: 700;
                     color: #111827;
                     margin-bottom: 4px;
@@ -372,7 +562,7 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                     ${formatPrice(price)}
                   </div>
                   <div style="
-                    font-size: 14px;
+                    font-size: ${isMobile ? '13px' : '14px'};
                     color: #6b7280;
                     margin-bottom: 12px;
                     line-height: 1.4;
@@ -381,20 +571,21 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                   </div>
                   <div style="
                     display: flex;
-                    gap: 16px;
+                    gap: ${isMobile ? '12px' : '16px'};
                     margin-bottom: 12px;
-                    font-size: 13px;
+                    font-size: ${isMobile ? '12px' : '13px'};
                     color: #374151;
+                    flex-wrap: wrap;
                   ">
                     <span style="display: flex; align-items: center; gap: 4px;">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9,22 9,12 15,12 15,22"></polyline>
                       </svg>
                       ${property.details?.numBedrooms || property.beds || 0} bed
                     </span>
                     <span style="display: flex; align-items: center; gap: 4px;">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
                         <rect x="4" y="6" width="16" height="12" rx="2" ry="2"></rect>
                         <circle cx="12" cy="12" r="2"></circle>
@@ -410,8 +601,8 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                       color: ${colors.white};
                       border: none;
                       border-radius: 6px;
-                      padding: 10px 16px;
-                      font-size: 14px;
+                      padding: ${isMobile ? '12px 14px' : '10px 16px'};
+                      font-size: ${isMobile ? '15px' : '14px'};
                       font-weight: 600;
                       cursor: pointer;
                       transition: all 0.2s ease;
@@ -419,7 +610,7 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                     onmouseover="this.style.background='${colors.onyx}'"
                     onmouseout="this.style.background='${colors.cobalt}'"
                   >
-                    View Details
+                    ${isMobile ? 'View Details' : 'View Details'}
                   </button>
                 </div>
               </div>
@@ -428,6 +619,13 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
             marker.addListener('click', () => {
               infoWindowRef.current.setContent(infoWindowContent);
               infoWindowRef.current.open(googleMapRef.current, marker);
+              
+              // On mobile, also trigger the property select callback after a delay
+              if (isMobile && onPropertySelect) {
+                setTimeout(() => {
+                  onPropertySelect(property);
+                }, 100);
+              }
             });
 
             markersRef.current.push(marker);
@@ -455,7 +653,7 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
         console.log(`Markers created: ${validMarkers} valid, ${invalidMarkers} invalid/missing coordinates`);
       }
       
-      // Initialize MarkerClusterer
+      // Initialize MarkerClusterer with mobile-optimized settings
       if (window.markerClusterer && markersRef.current.length > 0) {
         markerClustererRef.current = new window.markerClusterer.MarkerClusterer({
           map: googleMapRef.current,
@@ -468,7 +666,7 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
                 label: {
                   text: String(count),
                   color: colors.white,
-                  fontSize: '14px',
+                  fontSize: isMobile ? '12px' : '14px',
                   fontWeight: '600'
                 },
                 title: `${count} properties`,
@@ -477,8 +675,8 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
             }
           },
           algorithm: new window.markerClusterer.GridAlgorithm({
-            gridSize: 60,
-            maxDistance: 20000
+            gridSize: isMobile ? 50 : 60,
+            maxDistance: isMobile ? 15000 : 20000
           })
         });
       }
@@ -493,8 +691,9 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
         
         // Prevent zooming too far in if there's only one marker
         const listener = window.google.maps.event.addListener(googleMapRef.current, 'bounds_changed', () => {
-          if (googleMapRef.current.getZoom() > 15) {
-            googleMapRef.current.setZoom(15);
+          const maxZoom = isMobile ? 14 : 15;
+          if (googleMapRef.current.getZoom() > maxZoom) {
+            googleMapRef.current.setZoom(maxZoom);
           }
           window.google.maps.event.removeListener(listener);
         });
@@ -505,22 +704,32 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
   // Set up global function for handling property clicks from info windows
   useEffect(() => {
     window.handlePropertyMapClick = (mlsNumber) => {
-      if (mlsNumber) {
-        navigate(`/property/${mlsNumber}`);
+      const property = [...properties, ...allProperties].find(p => p.mlsNumber === mlsNumber);
+      if (property) {
+        handlePropertyClick(property);
       }
     };
 
     return () => {
       delete window.handlePropertyMapClick;
     };
-  }, [navigate]);
+  }, [properties, allProperties, isMobile, onPropertySelect]);
 
   // Re-add markers when properties change
   useEffect(() => {
     if (googleMapRef.current) {
       addMarkersWithClustering();
     }
-  }, [properties, allProperties, isFiltered, center]);
+  }, [properties, allProperties, isFiltered, center, isMobile]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (boundsChangeTimeoutRef.current) {
+        clearTimeout(boundsChangeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Show error message if Google Maps API key is missing
   if (!GOOGLE_MAPS_API_KEY) {
@@ -548,7 +757,12 @@ const GoogleMap = ({ center = { lat: parseFloat(process.env.REACT_APP_DEFAULT_LA
     <div 
       ref={mapRef} 
       className="google-map" 
-      style={{ width: '100%', height: '100%', minHeight: '400px' }}
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        minHeight: isMobile ? '300px' : '400px',
+        touchAction: isMobile ? 'pan-x pan-y' : 'auto'
+      }}
     />
   );
 };

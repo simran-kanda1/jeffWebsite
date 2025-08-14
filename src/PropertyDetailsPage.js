@@ -1416,9 +1416,9 @@ const PropertyDetailsPage = ({ property: initialProperty, onBack, onPropertySele
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: '2fr 1fr 1fr', 
-            gap: '60px',
-            marginBottom: '40px'
+            gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '2fr 1fr 1fr',
+            gap: window.innerWidth <= 768 ? '24px' : '60px',
+            marginBottom: window.innerWidth <= 768 ? '30px' : '40px'
           }}>
             {/* Company Info with Logo */}
             <div>
@@ -1797,7 +1797,8 @@ const PropertyDetailsPage = ({ property: initialProperty, onBack, onPropertySele
             maxHeight: '80vh',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            overflow: 'hidden' // ADDED: Prevent arrows from going off-screen
           }} onClick={(e) => e.stopPropagation()}>
             
             <img
@@ -1816,22 +1817,26 @@ const PropertyDetailsPage = ({ property: initialProperty, onBack, onPropertySele
               <>
                 <button
                   onClick={prevGalleryImage}
+                  className="photo-gallery-nav-arrow-left" // Added class for CSS targeting
                   style={{
                     position: 'absolute',
-                    left: '-60px',
+                    // FIXED: Mobile-responsive positioning
+                    left: window.innerWidth <= 768 ? '10px' : '-60px',
                     top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'rgba(255, 255, 255, 0.2)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '48px',
-                    height: '48px',
+                    // FIXED: Mobile-responsive sizing
+                    width: window.innerWidth <= 480 ? '36px' : window.innerWidth <= 768 ? '40px' : '48px',
+                    height: window.innerWidth <= 480 ? '36px' : window.innerWidth <= 768 ? '40px' : '48px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
                     color: 'white',
-                    fontSize: '24px',
+                    // FIXED: Mobile-responsive font size
+                    fontSize: window.innerWidth <= 480 ? '18px' : window.innerWidth <= 768 ? '20px' : '24px',
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
@@ -1846,22 +1851,26 @@ const PropertyDetailsPage = ({ property: initialProperty, onBack, onPropertySele
                 
                 <button
                   onClick={nextGalleryImage}
+                  className="photo-gallery-nav-arrow-right" // Added class for CSS targeting
                   style={{
                     position: 'absolute',
-                    right: '-60px',
+                    // FIXED: Mobile-responsive positioning
+                    right: window.innerWidth <= 768 ? '10px' : '-60px',
                     top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'rgba(255, 255, 255, 0.2)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '48px',
-                    height: '48px',
+                    // FIXED: Mobile-responsive sizing
+                    width: window.innerWidth <= 480 ? '36px' : window.innerWidth <= 768 ? '40px' : '48px',
+                    height: window.innerWidth <= 480 ? '36px' : window.innerWidth <= 768 ? '40px' : '48px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
                     color: 'white',
-                    fontSize: '24px',
+                    // FIXED: Mobile-responsive font size
+                    fontSize: window.innerWidth <= 480 ? '18px' : window.innerWidth <= 768 ? '20px' : '24px',
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {

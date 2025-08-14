@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useParams, useNavigate} from 'react-router-dom';
 import './App.css';
 import Header from './header';
 import SearchPage from './SearchPage';

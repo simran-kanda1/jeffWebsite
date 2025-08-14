@@ -2,6 +2,9 @@
   min-height: 100vh;
   background-color: #f8f9fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* CRITICAL FIX: Remove any height/overflow restrictions */
+  height: auto;
+  overflow: visible;
 }
 
 /* Remove any conflicting styles */
@@ -9,7 +12,7 @@
   box-sizing: border-box;
 }
 
-/* Ensure no text alignment conflicts */
+/* CRITICAL: Ensure no text alignment conflicts and enable scrolling */
 .App * {
   text-align: initial;
 }

@@ -1,8 +1,22 @@
+html {
+  scroll-behavior: smooth;
+  overflow: auto !important;
+  height: auto !important;
+}
+
+body {
+  overflow: auto !important;
+  height: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+}
+
 /* Reset and base styles */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  overscroll-behavior: auto !important;
 }
 
 body {
@@ -10,53 +24,99 @@ body {
   background-color: #f8f9fa;
   color: #333;
   line-height: 1.5;
+  /* FIXED: Remove any overflow restrictions on body */
+  overflow: auto;
+  height: auto;
 }
 
-/* Main container layout */
+html {
+  /* FIXED: Ensure html can scroll */
+  overflow: auto;
+  height: auto;
+  scroll-behavior: smooth;
+}
+
+/* Hide/show elements based on screen size */
+.desktop-only {
+  display: flex;
+}
+
+.mobile-only {
+  display: none;
+}
+
+/* FIXED: Main container layout - remove height restrictions */
 .main-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow: visible !important;
+  width: 100%;
+  height: auto !important;
 }
 
-/* Top bar container */
+/* FIXED: Top bar container - remove gap and fix positioning */
 .topbar-container {
-  padding: 16px 24px;
   background: white;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
-  top: 0;
+  top: 80px;
   z-index: 999;
+  transition: transform 0.3s ease;
+  padding: 0;
+  margin: 0;
 }
 
-/* Search content wrapper */
+.topbar-container.hidden {
+  transform: translateY(-100%);
+}
+
+.main-container.filters-hidden {
+  padding-top: 60px !important; /* Only header height when filters hidden */
+}
+.results-list {
+  padding-bottom: 150px !important; /* More space for pagination */
+  min-height: calc(100vh - 200px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+/* FIXED: Search content wrapper - allow proper scrolling */
 .search-content-wrapper {
   display: flex;
   flex: 1;
-  height: calc(100vh - 160px); /* Account for header and search bar */
-  overflow: hidden;
+  min-height: calc(100vh - 160px);
+  overflow: visible;
   width: 100%;
+  position: relative;
 }
 
 .search-content-wrapper.map-mode {
   flex-direction: row;
+  height: calc(100vh - 160px); /* Fixed height for map mode */
+  overflow: hidden; /* Prevent wrapper from scrolling */
 }
 
 .search-content-wrapper.grid-mode {
   flex-direction: column;
+  height: auto;
+  min-height: auto;
+  overflow: visible; /* Allow normal scrolling in grid mode */
 }
 
 /* Map container */
 .map-container {
   position: relative;
-  overflow: hidden;
+  /* FIXED: Remove overflow hidden to allow scrolling when needed */
+  overflow: visible;
   background: #e8f4f8;
 }
 
 .map-mode .map-container {
   width: 50%;
   flex: 0 0 50%;
+  /* FIXED: Set proper height for map mode */
+  height: calc(100vh - 160px);
+  overflow: hidden; /* Maps need overflow hidden */
 }
 
 .grid-mode .map-container {
@@ -73,23 +133,430 @@ body {
   z-index: 0;
 }
 
-/* Results container */
+/* FIXED: Results container - allow proper scrolling */
 .results-container {
   background: white;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+  height: auto;
+  min-height: auto;
 }
 
 .map-mode .results-container {
   width: 100%;
   flex: 0 0 50%;
   border-left: 1px solid #e5e7eb;
+  /* FIXED: Set proper height and scrolling for map mode */
+  height: calc(100vh - 160px);
+  overflow-y: auto;
 }
 
 .grid-mode .results-container {
   width: 100%;
   flex: 1;
+  /* FIXED: Allow content to expand naturally */
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+}
+
+/* Enhanced Pagination Styles */
+.top-pagination,
+.bottom-pagination {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: sticky;
+  z-index: 100;
+}
+
+.top-pagination {
+  top: 0;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.bottom-pagination {
+  bottom: 0;
+  border-top: 2px solid #e5e7eb;
+  border-bottom: none;
+}
+
+.pagination-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.results-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* MOBILE PROPERTY MODAL STYLES */
+.mobile-property-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: flex-end !important; /* Align to bottom */
+  justify-content: center !important;
+  pointer-events: none !important;
+}
+
+.mobile-property-modal.show {
+  pointer-events: all !important;
+}
+
+
+.mobile-property-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-property-modal.show .mobile-property-modal-backdrop {
+  opacity: 1;
+}
+
+.mobile-property-modal-content {
+  position: relative;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-height: 75vh;
+  min-height: 200px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-property-modal.show .mobile-property-modal-content {
+  transform: translateY(0);
+}
+
+/* Drag Handle */
+.mobile-property-modal-header {
+  padding: 12px 20px 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-drag-handle {
+  width: 40px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.modal-drag-handle:active {
+  background: #9ca3af;
+  transform: scaleY(1.2);
+}
+
+/* Scrollable Body */
+.mobile-property-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Property Image Section */
+.modal-property-image {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.modal-property-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-property-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: #050E3D;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.modal-property-favorite {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6b7280;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modal-property-favorite:hover {
+  background: white;
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+/* Property Information */
+.modal-property-info {
+  padding: 24px 20px;
+  background: white;
+}
+
+/* Price Section */
+.modal-property-price-section {
+  margin-bottom: 20px;
+}
+
+.modal-property-price {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.1;
+}
+
+.modal-property-price-subtext {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Address Section */
+.modal-property-address-section {
+  margin-bottom: 20px;
+}
+
+.modal-property-address {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.modal-property-neighborhood {
+  font-size: 14px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Property Stats */
+.modal-property-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.modal-stat-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.modal-stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Action Buttons */
+.modal-property-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modal-contact-btn {
+  padding: 16px 20px;
+  background: transparent;
+  color: #050E3D;
+  border: 2px solid #050E3D;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modal-contact-btn:hover {
+  background: #050E3D;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 14, 61, 0.3);
+}
+
+.modal-view-btn {
+  padding: 16px 20px;
+  background: #050E3D;
+  color: white;
+  border: 2px solid #050E3D;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(5, 14, 61, 0.2);
+}
+
+.modal-view-btn:hover {
+  background: #1D1D1D;
+  border-color: #1D1D1D;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 14, 61, 0.4);
+}
+
+/* Agent Info Section */
+.modal-agent-info {
+  background: #fafafa;
+  border-top: 1px solid #e5e7eb;
+  padding: 20px;
+  margin-top: 8px;
+}
+
+.modal-agent-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-agent-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #050E3D;
+  flex-shrink: 0;
+}
+
+.modal-agent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-agent-details h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.modal-agent-details p {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.modal-agent-contact {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-agent-phone,
+.modal-agent-email {
+  flex: 1;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #050E3D;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.modal-agent-phone:hover,
+.modal-agent-email:hover {
+  background: #f0fdf4;
+  border-color: #050E3D;
+  transform: translateY(-1px);
 }
 
 /* Results header */
@@ -140,14 +607,19 @@ body {
   border-color: #9ca3af;
 }
 
-/* Results list */
+/* FIXED: Results list with proper scrolling enabled */
 .results-list {
   flex: 1;
+  /* FIXED: Enable vertical scrolling */
   overflow-y: auto;
+  overflow-x: visible;
   padding: 20px;
   background: white;
-  height: 100%;
+  /* FIXED: Remove height restrictions */
+  height: auto;
+  min-height: 0;
   width: 100%;
+  scroll-behavior: smooth;
 }
 
 .results-list:not(.horizontal-scroll) {
@@ -155,6 +627,8 @@ body {
   gap: 20px;
   align-content: start;
   width: 100%;
+  /* FIXED: Ensure grid can expand */
+  min-height: min-content;
 }
 
 /* Map mode grid - 2 columns in 50% width */
@@ -167,6 +641,8 @@ body {
 .grid-mode .results-list:not(.horizontal-scroll) {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
+  /* FIXED: Add bottom padding but don't restrict height */
+  padding-bottom: 80px;
 }
 
 .results-list.horizontal-scroll {
@@ -225,7 +701,7 @@ body {
   position: absolute;
   top: 12px;
   left: 12px;
-  background: #050E3D; /* Cobalt */
+  background: #050E3D;
   color: white;
   padding: 6px 12px;
   border-radius: 6px;
@@ -348,7 +824,7 @@ body {
 
 .tour-btn {
   background: #f8fafc;
-  color: #050E3D; /* Cobalt */
+  color: #050E3D;
   border: 1px solid #050E3D;
 }
 
@@ -373,7 +849,7 @@ body {
   width: 40px;
   height: 40px;
   border: 3px solid #e5e7eb;
-  border-top: 3px solid #050E3D; /* Cobalt */
+  border-top: 3px solid #050E3D;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
@@ -473,29 +949,119 @@ body {
   line-height: 1.5;
 }
 
-/* Responsive design */
+/* Mobile responsive design */
 @media (max-width: 768px) {
-  .search-content-wrapper {
+
+  html, body {
+    overflow: auto !important;
+    height: auto !important;
+    position: relative !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: auto !important;
+  }
+
+  .main-container {
+    padding-top: 230px !important; /* Space for header + search filters */
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+  
+
+  .results-container {
+    position: relative !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: flex !important;
     flex-direction: column !important;
-    height: calc(100vh - 160px);
+  }
+
+  .results-list {
+    padding-bottom: 150px !important; /* More space for pagination */
+    min-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   
   .map-container,
   .results-container {
     width: 100% !important;
     flex: none !important;
+    position: relative;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .search-content-wrapper {
+    margin-top: 0 !important; /* Remove extra margin */
+    height: auto !important;
+    min-height: calc(100vh - 120px) !important;
+    overflow: visible !important;
   }
   
+  /* Full screen map on mobile */
   .map-container {
-    height: 40vh;
-  }
-  
-  .results-container {
+    height: calc(100vh - 120px);
     flex: 1 !important;
-    border-left: none !important;
-    border-top: 1px solid #e5e7eb;
+    overflow: hidden; /* Maps need overflow hidden */
   }
   
+  /* Hide results container on mobile map view */
+  .map-mode .results-container {
+    display: none !important;
+  }
+
+  /* Grid mode on mobile */
+  .grid-mode .map-container {
+    display: none !important;
+  }
+
+  .grid-mode .results-container {
+    flex: 1 !important;
+    height: auto !important;
+    min-height: calc(100vh - 120px) !important;
+  }
+
+  .grid-mode .results-list {
+    height: auto !important;
+    min-height: calc(100vh - 180px) !important;
+    overflow-y: auto !important;
+  }
+
+  /* Mobile pagination adjustments */
+  .top-pagination,
+  .bottom-pagination {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .pagination-info {
+    text-align: center;
+  }
+
+  .results-count {
+    font-size: 16px;
+  }
+
+  .page-info {
+    font-size: 13px;
+  }
+
+  .results-list {
+    padding: 16px;
+    padding-bottom: 100px; /* Extra space for mobile bottom pagination */
+    overflow-y: auto;
+  }
+
   .results-list:not(.horizontal-scroll) {
     grid-template-columns: 1fr !important;
     gap: 16px;
@@ -512,29 +1078,299 @@ body {
     width: 100%;
     justify-content: space-between;
   }
-  
-  .results-list {
+
+  .property-card {
+    margin-bottom: 0;
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  .property-image {
+    height: 180px;
+  }
+
+  .property-content {
+    padding: 14px;
+  }
+
+  .property-price {
+    font-size: 20px;
+  }
+
+  .property-details {
+    gap: 12px;
+  }
+
+  .detail-item {
+    font-size: 13px;
+  }
+
+  .property-actions {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .contact-btn,
+  .tour-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* Mobile modal responsive */
+  .mobile-property-modal-content {
+    max-height: 85vh;
+  }
+
+  .modal-property-image {
+    height: 200px;
+  }
+
+  .modal-property-info {
+    padding: 20px 16px;
+  }
+
+  .modal-property-price {
+    font-size: 26px;
+  }
+
+  .modal-property-address {
+    font-size: 17px;
+  }
+
+  .modal-property-stats {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .modal-stat-number {
+    font-size: 18px;
+  }
+
+  .modal-stat-label {
+    font-size: 11px;
+  }
+
+  .modal-property-actions {
+    gap: 10px;
+  }
+
+  .modal-contact-btn,
+  .modal-view-btn {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+
+  .modal-agent-info {
     padding: 16px;
+  }
+
+  .modal-agent-content {
+    gap: 10px;
+  }
+
+  .modal-agent-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .modal-agent-details h4 {
+    font-size: 15px;
+  }
+
+  .modal-agent-details p {
+    font-size: 12px;
   }
 }
 
 @media (max-width: 480px) {
-  .property-actions {
-    flex-direction: column;
-    gap: 8px;
+  .main-content {
+    padding: 20px 16px;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* FIXED: Adjust mobile spacing for very small screens */
+  .search-content-wrapper {
+    margin-top: 130px; /* Slightly less for very small screens */
+  }
+
+  .map-container {
+    height: calc(100vh - 130px);
+  }
+
+  .grid-mode .results-container {
+    min-height: calc(100vh - 130px);
+  }
+
+  .grid-mode .results-list {
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: calc(100vh - 200px);
+    -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+  }
+
+  .results-list {
+    padding: 12px;
+    padding-bottom: 90px;
+    min-height: calc(100vh - 200px);
   }
   
+  .results-header,
+  .top-pagination,
+  .bottom-pagination {
+    padding: 12px;
+  }
+
+  .property-content {
+    padding: 12px;
+  }
+
+  .property-price {
+    font-size: 18px;
+  }
+
   .property-details {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
-  .results-header {
+
+  .detail-item {
+    font-size: 12px;
+  }
+
+  .contact-btn,
+  .tour-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .results-count {
+    font-size: 15px;
+  }
+
+  .page-info {
+    font-size: 12px;
+  }
+
+  /* Ultra small mobile modal adjustments */
+  .modal-property-image {
+    height: 180px;
+  }
+
+  .modal-property-price {
+    font-size: 24px;
+  }
+
+  .modal-property-address {
+    font-size: 16px;
+  }
+
+  .modal-property-stats {
+    gap: 10px;
     padding: 12px;
   }
+
+  .modal-stat-number {
+    font-size: 16px;
+  }
+
+  .modal-contact-btn,
+  .modal-view-btn {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .modal-agent-info {
+    padding: 14px;
+  }
+}
+
+/* Additional mobile optimizations for touch */
+@media (hover: none) and (pointer: coarse) {
+  .property-card:hover {
+    transform: none;
+  }
   
-  .results-list {
-    padding: 12px;
+  .property-card:active {
+    transform: scale(0.98);
+  }
+  
+  .contact-btn:hover,
+  .tour-btn:hover {
+    transform: none;
+  }
+  
+  .contact-btn:active,
+  .tour-btn:active {
+    transform: scale(0.95);
+  }
+
+  .favorite-btn:hover {
+    transform: none;
+  }
+  
+  .favorite-btn:active {
+    transform: scale(0.9);
+  }
+
+  .modal-contact-btn:hover,
+  .modal-view-btn:hover {
+    transform: none;
+  }
+  
+  .modal-contact-btn:active,
+  .modal-view-btn:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Animation States for Modal */
+.mobile-property-modal-enter {
+  opacity: 0;
+}
+
+.mobile-property-modal-enter-active {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-property-modal-enter-active .mobile-property-modal-content {
+  transform: translateY(0);
+}
+
+.mobile-property-modal-exit {
+  opacity: 1;
+}
+
+.mobile-property-modal-exit-active {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-property-modal-exit-active .mobile-property-modal-content {
+  transform: translateY(100%);
+}
+
+/* Touch and Gesture Support */
+.mobile-property-modal-content {
+  touch-action: pan-y;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-property-modal-content {
+    transition: none;
+  }
+  
+  .mobile-property-modal-backdrop {
+    transition: none;
+  }
+  
+  .loading-spinner {
+    animation: none;
   }
 }

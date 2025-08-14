@@ -7,64 +7,77 @@ const CompactPagination = ({ currentPage, totalPages, onPageChange }) => {
     return null;
   }
 
-  // Calculate which page numbers to show (compact version)
+  // FIXED: Mobile-first pagination logic - show fewer pages on mobile
   const getVisiblePages = () => {
-    const delta = 1; // Show fewer pages in compact mode
+    const isMobile = window.innerWidth <= 768;
+    const delta = isMobile ? 0 : 1; // Show only current page on mobile, 1 on each side on desktop
     const range = [];
     const rangeWithDots = [];
     
-    // Always show first page
-    if (currentPage > 3) {
-      rangeWithDots.push(1);
-      if (currentPage > 4) {
-        rangeWithDots.push('...');
+    if (isMobile) {
+      // Mobile: Show only current page with prev/next
+      rangeWithDots.push(currentPage);
+    } else {
+      // Desktop: Show more pages
+      // Always show first page if we're far from it
+      if (currentPage > 3) {
+        rangeWithDots.push(1);
+        if (currentPage > 4) {
+          rangeWithDots.push('...');
+        }
       }
-    }
 
-    // Show pages around current page
-    for (let i = Math.max(1, currentPage - delta); 
-         i <= Math.min(totalPages, currentPage + delta); 
-         i++) {
-      if (!rangeWithDots.includes(i)) {
-        rangeWithDots.push(i);
+      // Show pages around current page
+      for (let i = Math.max(1, currentPage - delta); 
+           i <= Math.min(totalPages, currentPage + delta); 
+           i++) {
+        if (!rangeWithDots.includes(i)) {
+          rangeWithDots.push(i);
+        }
       }
-    }
 
-    // Always show last page
-    if (currentPage < totalPages - 2) {
-      if (currentPage < totalPages - 3) {
-        rangeWithDots.push('...');
+      // Always show last page if we're far from it
+      if (currentPage < totalPages - 2) {
+        if (currentPage < totalPages - 3) {
+          rangeWithDots.push('...');
+        }
+        rangeWithDots.push(totalPages);
       }
-      rangeWithDots.push(totalPages);
     }
 
     return rangeWithDots;
   };
 
   const visiblePages = getVisiblePages();
+  const isMobile = window.innerWidth <= 768;
 
   const styles = {
     paginationContainer: {
       display: 'flex',
       alignItems: 'center',
-      gap: '8px'
+      justifyContent: 'center',
+      gap: isMobile ? '6px' : '8px',
+      width: '100%',
+      maxWidth: '100%',
+      padding: isMobile ? '0 8px' : '0'
     },
     paginationButton: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      minWidth: '32px',
-      height: '32px',
-      padding: '0 6px',
+      minWidth: isMobile ? '28px' : '32px',
+      height: isMobile ? '28px' : '32px',
+      padding: '0',
       backgroundColor: 'white',
       border: '1px solid #d1d5db',
       borderRadius: '4px',
       cursor: 'pointer',
-      fontSize: '13px',
+      fontSize: isMobile ? '12px' : '13px',
       fontWeight: '500',
       color: '#374151',
       transition: 'all 0.2s ease',
-      userSelect: 'none'
+      userSelect: 'none',
+      flexShrink: 0
     },
     paginationButtonActive: {
       backgroundColor: '#050E3D',
@@ -75,27 +88,39 @@ const CompactPagination = ({ currentPage, totalPages, onPageChange }) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      width: '32px',
-      height: '32px',
+      width: isMobile ? '32px' : '36px',
+      height: isMobile ? '28px' : '32px',
       backgroundColor: 'white',
       border: '1px solid #d1d5db',
       borderRadius: '4px',
       cursor: 'pointer',
       color: '#374151',
-      transition: 'all 0.2s ease'
+      transition: 'all 0.2s ease',
+      flexShrink: 0
     },
     navigationButtonDisabled: {
-      opacity: '0.5',
+      opacity: '0.4',
       cursor: 'not-allowed',
       backgroundColor: '#f9fafb'
     },
     dots: {
       display: 'flex',
       alignItems: 'center',
-      padding: '0 4px',
+      padding: '0 2px',
       color: '#9ca3af',
-      fontSize: '13px',
-      fontWeight: '500'
+      fontSize: isMobile ? '11px' : '13px',
+      fontWeight: '500',
+      minWidth: isMobile ? '16px' : '20px',
+      justifyContent: 'center'
+    },
+    pageInfo: {
+      fontSize: isMobile ? '11px' : '12px',
+      color: '#6b7280',
+      fontWeight: '500',
+      minWidth: 'fit-content',
+      textAlign: 'center',
+      padding: '0 4px',
+      whiteSpace: 'nowrap'
     }
   };
 
@@ -139,12 +164,20 @@ const CompactPagination = ({ currentPage, totalPages, onPageChange }) => {
             e.target.style.borderColor = '#d1d5db';
           }
         }}
+        aria-label="Previous page"
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={isMobile ? 12 : 14} />
       </button>
 
-      {/* Page Numbers */}
-      {visiblePages.map((pageNum, index) => {
+      {/* FIXED: Mobile page indicator */}
+      {isMobile && (
+        <div style={styles.pageInfo}>
+          {currentPage} of {totalPages}
+        </div>
+      )}
+
+      {/* FIXED: Desktop page numbers */}
+      {!isMobile && visiblePages.map((pageNum, index) => {
         if (pageNum === '...') {
           return (
             <div key={`dots-${index}`} style={styles.dots}>
@@ -175,6 +208,8 @@ const CompactPagination = ({ currentPage, totalPages, onPageChange }) => {
                 e.target.style.borderColor = '#d1d5db';
               }
             }}
+            aria-label={`Go to page ${pageNum}`}
+            aria-current={isActive ? 'page' : undefined}
           >
             {pageNum}
           </button>
@@ -201,8 +236,9 @@ const CompactPagination = ({ currentPage, totalPages, onPageChange }) => {
             e.target.style.borderColor = '#d1d5db';
           }
         }}
+        aria-label="Next page"
       >
-        <ChevronRight size={14} />
+        <ChevronRight size={isMobile ? 12 : 14} />
       </button>
     </div>
   );

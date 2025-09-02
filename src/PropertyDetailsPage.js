@@ -892,14 +892,17 @@ const PropertyDetailsPage = ({ property: initialProperty, onBack, onPropertySele
 
             {property.details?.description && (
               <div style={{
-                fontSize: '16px',
-                lineHeight: '1.7',
+                fontSize: window.innerWidth <= 480 ? '14px' : window.innerWidth <= 768 ? '15px' : '16px',
+                lineHeight: window.innerWidth <= 768 ? '1.5' : '1.7',
                 color: '#374151',
-                marginBottom: '32px',
-                padding: '24px',
+                marginBottom: window.innerWidth <= 768 ? '24px' : '32px',
+                padding: window.innerWidth <= 480 ? '20px' : window.innerWidth <= 768 ? '24px' : '28px',
                 background: '#fafafa',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb'
+                borderRadius: '12px',
+                border: '1px solid #e5e7eb',
+                height: 'auto',
+                minHeight: 'auto',
+                overflow: 'visible'
               }}>
                 {property.details.description}
               </div>

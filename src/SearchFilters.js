@@ -4,27 +4,37 @@ import './SearchFilters.css'
 
 const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChange }) => {
   const [showFilters, setShowFilters] = useState(false);
-  const [showForSaleDropdown, setShowForSaleDropdown] = useState(false);
-  const [showActiveDropdown, setShowActiveDropdown] = useState(false);
   const [showPropertyTypeDropdown, setShowPropertyTypeDropdown] = useState(false);
   const [showPriceDropdown, setShowPriceDropdown] = useState(false);
   
   // Refs for mobile dropdown positioning
-  const forSaleRef = useRef(null);
   const propertyTypeRef = useRef(null);
   const priceRef = useRef(null);
-  const activeRef = useRef(null);
 
-  // FIXED: Remove body scroll management - let natural scroll work
-  // Only close dropdowns on outside click, don't prevent body scroll
-  
+  // Property type options
+  const propertyTypeOptions = [
+    { value: '', label: 'All Types' },
+    { value: 'House', label: '🏠 House' },
+    { value: 'Condo', label: '🏢 Condo' },
+    { value: 'Townhouse', label: '🏘️ Townhouse' },
+    { value: 'Apartment', label: '🏬 Apartment' }
+  ];
+
+  // Price range options
+  const priceRanges = [
+    { value: '', label: 'Any Price' },
+    { value: '0-300000', label: 'Under $300K' },
+    { value: '300000-500000', label: '$300K - $500K' },
+    { value: '500000-700000', label: '$500K - $700K' },
+    { value: '700000-1000000', label: '$700K - $1M' },
+    { value: '1000000-1500000', label: '$1M - $1.5M' },
+    { value: '1500000-+', label: '$1.5M+' }
+  ];
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Close all dropdowns if clicking outside
       if (!event.target.closest('.dropdown-container') && !event.target.closest('.advanced-filters')) {
-        setShowForSaleDropdown(false);
-        setShowActiveDropdown(false);
         setShowPropertyTypeDropdown(false);
         setShowPriceDropdown(false);
       }
@@ -49,27 +59,72 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  // Auto-search when filters change (with debounce)
+  // Auto-search when filters change (with debounce) - FIXED to prevent spazzing
   useEffect(() => {
-    const hasActiveFilters = filters.priceRange || filters.bedrooms || filters.bathrooms || filters.propertyType;
-    if (hasActiveFilters) {
+    // Only auto-search for query changes, not filter dropdowns
+    if (filters.query) {
       const timeoutId = setTimeout(() => {
-        if (onSearch) {
-          onSearch();
-        }
-      }, 800);
+        onSearch();
+      }, 800); // Longer debounce for query
+
       return () => clearTimeout(timeoutId);
     }
-  }, [filters.priceRange, filters.bedrooms, filters.bathrooms, filters.propertyType]);
+  }, [filters.query, onSearch]);
+
+  // Manual search trigger for dropdown filters (no auto-search)
+  const triggerSearch = () => {
+    onSearch();
+  };
+
+  const closeAllDropdowns = () => {
+    setShowPropertyTypeDropdown(false);
+    setShowPriceDropdown(false);
+  };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+    closeAllDropdowns();
+    
+    // Trigger search immediately for dropdown filters (not query)
+    if (key !== 'query') {
+      setTimeout(() => {
+        triggerSearch();
+      }, 100);
+    }
+  };
+
+  const handleDropdownToggle = (dropdown) => {
+    closeAllDropdowns();
+    
+    switch (dropdown) {
+      case 'propertyType':
+        setShowPropertyTypeDropdown(!showPropertyTypeDropdown);
+        break;
+      case 'price':
+        setShowPriceDropdown(!showPriceDropdown);
+        break;
+    }
+  };
+
+  const handleDropdownSelection = (filterType, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
+    closeAllDropdowns();
+    
+    // Trigger search immediately for dropdown selections
+    setTimeout(() => {
+      triggerSearch();
+    }, 100);
   };
 
   const handleSearch = () => {
-    if (onSearch) {
-      onSearch();
-    }
+    onSearch();
+    closeAllDropdowns();
   };
 
   const clearFilters = () => {
@@ -78,108 +133,19 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
       priceRange: '',
       bedrooms: '',
       bathrooms: '',
-      propertyType: '',
-      forSale: 'For Sale',
-      activeStatus: 'Active'
+      propertyType: ''
     });
-  };
-
-  // Close all dropdowns when opening a new one
-  const closeAllDropdowns = () => {
-    setShowForSaleDropdown(false);
-    setShowActiveDropdown(false);
-    setShowPropertyTypeDropdown(false);
-    setShowPriceDropdown(false);
-  };
-
-  const handleDropdownToggle = (dropdownType) => {
     closeAllDropdowns();
-    
-    switch (dropdownType) {
-      case 'forSale':
-        setShowForSaleDropdown(true);
-        break;
-      case 'active':
-        setShowActiveDropdown(true);
-        break;
-      case 'propertyType':
-        setShowPropertyTypeDropdown(true);
-        break;
-      case 'price':
-        setShowPriceDropdown(true);
-        break;
-      default:
-        break;
-    }
   };
 
-  // Handle dropdown item selection with proper mobile behavior
-  const handleDropdownSelection = (dropdownType, value) => {
-    switch (dropdownType) {
-      case 'forSale':
-        handleFilterChange('forSale', value);
-        setShowForSaleDropdown(false);
-        break;
-      case 'active':
-        handleFilterChange('activeStatus', value);
-        setShowActiveDropdown(false);
-        break;
-      case 'propertyType':
-        handleFilterChange('propertyType', value);
-        setShowPropertyTypeDropdown(false);
-        break;
-      case 'price':
-        handleFilterChange('priceRange', value);
-        setShowPriceDropdown(false);
-        break;
-      default:
-        break;
-    }
-  };
+  // Count active filters (excluding query)
+  const activeFiltersCount = [
+    filters.priceRange,
+    filters.bedrooms,
+    filters.bathrooms,
+    filters.propertyType
+  ].filter(Boolean).length;
 
-  // Count active filters
-  const activeFiltersCount = Object.entries(filters).filter(([key, value]) => 
-    value && value !== '' && key !== 'forSale' && key !== 'activeStatus'
-  ).length;
-
-  const forSaleOptions = [
-    { value: 'For Sale', label: 'For Sale' },
-    { value: 'For Rent', label: 'For Rent' },
-    { value: 'Sold', label: 'Sold' }
-  ];
-
-  const activeOptions = [
-    { value: 'Active', label: 'Active' },
-    { value: 'All', label: 'All' },
-    { value: 'Last day', label: 'Last day' },
-    { value: 'Last 3 days', label: 'Last 3 days' },
-    { value: 'Last 7 days', label: 'Last 7 days' },
-    { value: 'Last 14 days', label: 'Last 14 days' },
-    { value: 'Last 30 days', label: 'Last 30 days' },
-    { value: 'Last 90 days', label: 'Last 90 days' },
-    { value: 'Last 180 days', label: 'Last 180 days' },
-    { value: 'Last 360 days', label: 'Last 360 days' }
-  ];
-
-  const propertyTypes = [
-    { value: 'detached', label: 'Detached', icon: '🏠' },
-    { value: 'semi-detached', label: 'Semi-detached', icon: '🏘️' },
-    { value: 'townhouse', label: 'Townhouse', icon: '🏬' },
-    { value: 'low-rise-condo', label: 'Low rise condo', icon: '🏢' },
-    { value: 'high-rise-condo', label: 'High rise condo', icon: '🏗️' }
-  ];
-
-  const priceRanges = [
-    { value: '0-300000', label: 'Under $300K' },
-    { value: '300000-500000', label: '$300K - $500K' },
-    { value: '500000-700000', label: '$500K - $700K' },
-    { value: '700000-1000000', label: '$700K - $1M' },
-    { value: '1000000-1500000', label: '$1M - $1.5M' },
-    { value: '1500000-2000000', label: '$1.5M - $2M' },
-    { value: '2000000-999999999', label: '$2M+' }
-  ];
-
-  // FIXED: Mobile dropdown component without body scroll prevention
   const MobileDropdown = ({ isOpen, onClose, children, title }) => {
     if (!isOpen) return null;
 
@@ -221,84 +187,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
 
         {/* Filter Buttons */}
         <div className="filter-buttons">
-          {/* For Sale Dropdown */}
-          <div className="dropdown-container" ref={forSaleRef}>
-            <button 
-              className="filter-btn"
-              onClick={() => handleDropdownToggle('forSale')}
-              aria-expanded={showForSaleDropdown}
-              aria-haspopup="listbox"
-            >
-              <span>{filters.forSale || 'For Sale'}</span>
-              <ChevronDown size={16} />
-            </button>
-            <MobileDropdown 
-              isOpen={showForSaleDropdown} 
-              onClose={() => setShowForSaleDropdown(false)}
-              title="Listing Type"
-            >
-              {forSaleOptions.map(option => (
-                <div 
-                  key={option.value}
-                  className={`dropdown-item ${(filters.forSale || 'For Sale') === option.value ? 'selected' : ''}`}
-                  onClick={() => handleDropdownSelection('forSale', option.value)}
-                  role="option"
-                  aria-selected={(filters.forSale || 'For Sale') === option.value}
-                >
-                  {option.label}
-                  {(filters.forSale || 'For Sale') === option.value && <Check size={16} />}
-                </div>
-              ))}
-            </MobileDropdown>
-          </div>
-
-          {/* Active Status Buttons */}
-          <div className="status-buttons">
-            <button 
-              className={`status-btn ${(filters.activeStatus || 'Active') === 'Active' ? 'active' : ''}`}
-              onClick={() => handleFilterChange('activeStatus', 'Active')}
-            >
-              Active
-            </button>
-            <div className="dropdown-container" ref={activeRef}>
-              <button 
-                className={`status-btn dropdown-btn ${(filters.activeStatus || 'Active') === 'All' ? 'active' : ''}`}
-                onClick={() => handleDropdownToggle('active')}
-                aria-expanded={showActiveDropdown}
-                aria-haspopup="listbox"
-              >
-                All
-                <ChevronDown size={14} />
-              </button>
-              <MobileDropdown 
-                isOpen={showActiveDropdown} 
-                onClose={() => setShowActiveDropdown(false)}
-                title="Listing Status"
-              >
-                {activeOptions.map(option => (
-                  <div 
-                    key={option.value}
-                    className={`dropdown-item ${(filters.activeStatus || 'Active') === option.value ? 'selected' : ''}`}
-                    onClick={() => handleDropdownSelection('active', option.value)}
-                    role="option"
-                    aria-selected={(filters.activeStatus || 'Active') === option.value}
-                  >
-                    {option.label}
-                    {(filters.activeStatus || 'Active') === option.value && <Check size={16} />}
-                  </div>
-                ))}
-              </MobileDropdown>
-            </div>
-          </div>
-
-          {/* Sold Button */}
-          <button 
-            className={`filter-btn ${filters.forSale === 'Sold' ? 'active' : ''}`}
-            onClick={() => handleFilterChange('forSale', 'Sold')}
-          >
-            <span>Sold</span>
-          </button>
-
           {/* Property Type Dropdown */}
           <div className="dropdown-container" ref={propertyTypeRef}>
             <button 
@@ -307,7 +195,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
               aria-expanded={showPropertyTypeDropdown}
               aria-haspopup="listbox"
             >
-              <span>{filters.propertyType ? propertyTypes.find(p => p.value === filters.propertyType)?.label : 'Property type'}</span>
+              <span>{propertyTypeOptions.find(opt => opt.value === filters.propertyType)?.label || 'All Types'}</span>
               <ChevronDown size={16} />
             </button>
             <MobileDropdown 
@@ -315,17 +203,16 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
               onClose={() => setShowPropertyTypeDropdown(false)}
               title="Property Type"
             >
-              {propertyTypes.map(type => (
+              {propertyTypeOptions.map(option => (
                 <div 
-                  key={type.value}
-                  className={`dropdown-item property-type-item ${filters.propertyType === type.value ? 'selected' : ''}`}
-                  onClick={() => handleDropdownSelection('propertyType', type.value)}
+                  key={option.value}
+                  className={`dropdown-item property-type-item ${(filters.propertyType || '') === option.value ? 'selected' : ''}`}
+                  onClick={() => handleDropdownSelection('propertyType', option.value)}
                   role="option"
-                  aria-selected={filters.propertyType === type.value}
+                  aria-selected={(filters.propertyType || '') === option.value}
                 >
-                  <span className="property-icon">{type.icon}</span>
-                  <span>{type.label}</span>
-                  {filters.propertyType === type.value && <Check size={16} />}
+                  {option.label}
+                  {(filters.propertyType || '') === option.value && <Check size={16} />}
                 </div>
               ))}
             </MobileDropdown>
@@ -339,7 +226,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
               aria-expanded={showPriceDropdown}
               aria-haspopup="listbox"
             >
-              <span>{filters.priceRange ? priceRanges.find(p => p.value === filters.priceRange)?.label : 'Any price range'}</span>
+              <span>{priceRanges.find(range => range.value === filters.priceRange)?.label || 'Any Price'}</span>
               <ChevronDown size={16} />
             </button>
             <MobileDropdown 
@@ -347,20 +234,11 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
               onClose={() => setShowPriceDropdown(false)}
               title="Price Range"
             >
-              <div 
-                className={`dropdown-item ${!filters.priceRange ? 'selected' : ''}`}
-                onClick={() => handleDropdownSelection('price', '')}
-                role="option"
-                aria-selected={!filters.priceRange}
-              >
-                Any price range
-                {!filters.priceRange && <Check size={16} />}
-              </div>
               {priceRanges.map(range => (
                 <div 
                   key={range.value}
                   className={`dropdown-item ${filters.priceRange === range.value ? 'selected' : ''}`}
-                  onClick={() => handleDropdownSelection('price', range.value)}
+                  onClick={() => handleDropdownSelection('priceRange', range.value)}
                   role="option"
                   aria-selected={filters.priceRange === range.value}
                 >
@@ -410,7 +288,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
         </div>
       </div>
 
-      {/* FIXED: Advanced Filters Panel without body scroll prevention */}
+      {/* Advanced Filters Panel - Simplified */}
       {showFilters && (
         <div className="advanced-filters" onClick={() => setShowFilters(false)}>
           <div onClick={(e) => e.stopPropagation()}>
@@ -426,27 +304,8 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
             </div>
             
             <div className="filters-grid">
+              {/* Only Bedrooms and Bathrooms */}
               <div className="filter-row">
-                <div className="filter-group">
-                  <label>Internal sqft</label>
-                  <div className="range-inputs">
-                    <input
-                      type="number"
-                      placeholder="no min"
-                      value={filters.sqftMin || ''}
-                      onChange={(e) => handleFilterChange('sqftMin', e.target.value)}
-                      className="range-input"
-                    />
-                    <span>-</span>
-                    <input
-                      type="number"
-                      placeholder="no max"
-                      value={filters.sqftMax || ''}
-                      onChange={(e) => handleFilterChange('sqftMax', e.target.value)}
-                      className="range-input"
-                    />
-                  </div>
-                </div>
                 <div className="filter-group">
                   <label>Bedrooms</label>
                   <div className="number-buttons">
@@ -461,9 +320,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
                     ))}
                   </div>
                 </div>
-              </div>
-
-              <div className="filter-row">
                 <div className="filter-group">
                   <label>Bathrooms</label>
                   <div className="number-buttons">
@@ -474,37 +330,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
                         onClick={() => handleFilterChange('bathrooms', bath === 'Any' ? '' : bath)}
                       >
                         {bath}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="filter-group">
-                  <label>Garage/Covered parking</label>
-                  <div className="number-buttons">
-                    {['Any', '1+', '2+', '3+', '4+', '5+', '6+'].map(parking => (
-                      <button
-                        key={parking}
-                        className={`number-btn ${filters.parking === parking || (!filters.parking && parking === 'Any') ? 'active' : ''}`}
-                        onClick={() => handleFilterChange('parking', parking === 'Any' ? '' : parking)}
-                      >
-                        {parking}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="filter-row">
-                <div className="filter-group">
-                  <label>Basement</label>
-                  <div className="checkbox-buttons">
-                    {['Finished', 'Partly Finished', 'Sep Entrance'].map(basement => (
-                      <button
-                        key={basement}
-                        className={`checkbox-btn ${filters.basement === basement ? 'active' : ''}`}
-                        onClick={() => handleFilterChange('basement', filters.basement === basement ? '' : basement)}
-                      >
-                        {basement}
                       </button>
                     ))}
                   </div>
@@ -528,7 +353,7 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
                     setShowFilters(false);
                   }}
                 >
-                  Submit
+                  Apply Filters
                 </button>
               </div>
             </div>

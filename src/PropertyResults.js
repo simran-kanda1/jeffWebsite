@@ -247,12 +247,6 @@ const PropertyResults = ({
                     )}
                   </div>
 
-                  {!isHorizontal && (property.description || property.remarks || property.details?.description) && (
-                    <div className="property-listing-description">
-                      {(property.description || property.remarks || property.details?.description).slice(0, 120)}...
-                    </div>
-                  )}
-
                   <div className="property-listing-footer">
                     <div className="property-listing-actions">
                       <button 

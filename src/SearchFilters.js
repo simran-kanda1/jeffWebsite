@@ -4,21 +4,10 @@ import './SearchFilters.css'
 
 const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChange }) => {
   const [showFilters, setShowFilters] = useState(false);
-  const [showPropertyTypeDropdown, setShowPropertyTypeDropdown] = useState(false);
   const [showPriceDropdown, setShowPriceDropdown] = useState(false);
   
   // Refs for mobile dropdown positioning
-  const propertyTypeRef = useRef(null);
   const priceRef = useRef(null);
-
-  // Property type options
-  const propertyTypeOptions = [
-    { value: '', label: 'All Types' },
-    { value: 'House', label: '🏠 House' },
-    { value: 'Condo', label: '🏢 Condo' },
-    { value: 'Townhouse', label: '🏘️ Townhouse' },
-    { value: 'Apartment', label: '🏬 Apartment' }
-  ];
 
   // Price range options
   const priceRanges = [
@@ -35,7 +24,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.dropdown-container') && !event.target.closest('.advanced-filters')) {
-        setShowPropertyTypeDropdown(false);
         setShowPriceDropdown(false);
       }
     };
@@ -77,7 +65,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
   };
 
   const closeAllDropdowns = () => {
-    setShowPropertyTypeDropdown(false);
     setShowPriceDropdown(false);
   };
 
@@ -100,9 +87,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
     closeAllDropdowns();
     
     switch (dropdown) {
-      case 'propertyType':
-        setShowPropertyTypeDropdown(!showPropertyTypeDropdown);
-        break;
       case 'price':
         setShowPriceDropdown(!showPriceDropdown);
         break;
@@ -133,7 +117,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
       priceRange: '',
       bedrooms: '',
       bathrooms: '',
-      propertyType: ''
     });
     closeAllDropdowns();
   };
@@ -143,7 +126,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
     filters.priceRange,
     filters.bedrooms,
     filters.bathrooms,
-    filters.propertyType
   ].filter(Boolean).length;
 
   const MobileDropdown = ({ isOpen, onClose, children, title }) => {
@@ -187,37 +169,6 @@ const SearchFilters = ({ filters, setFilters, onSearch, viewMode, onViewModeChan
 
         {/* Filter Buttons */}
         <div className="filter-buttons">
-          {/* Property Type Dropdown */}
-          <div className="dropdown-container" ref={propertyTypeRef}>
-            <button 
-              className="filter-btn"
-              onClick={() => handleDropdownToggle('propertyType')}
-              aria-expanded={showPropertyTypeDropdown}
-              aria-haspopup="listbox"
-            >
-              <span>{propertyTypeOptions.find(opt => opt.value === filters.propertyType)?.label || 'All Types'}</span>
-              <ChevronDown size={16} />
-            </button>
-            <MobileDropdown 
-              isOpen={showPropertyTypeDropdown} 
-              onClose={() => setShowPropertyTypeDropdown(false)}
-              title="Property Type"
-            >
-              {propertyTypeOptions.map(option => (
-                <div 
-                  key={option.value}
-                  className={`dropdown-item property-type-item ${(filters.propertyType || '') === option.value ? 'selected' : ''}`}
-                  onClick={() => handleDropdownSelection('propertyType', option.value)}
-                  role="option"
-                  aria-selected={(filters.propertyType || '') === option.value}
-                >
-                  {option.label}
-                  {(filters.propertyType || '') === option.value && <Check size={16} />}
-                </div>
-              ))}
-            </MobileDropdown>
-          </div>
-
           {/* Price Range Dropdown */}
           <div className="dropdown-container" ref={priceRef}>
             <button 
